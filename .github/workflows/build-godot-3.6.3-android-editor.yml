@@ -1,0 +1,60 @@
+name: Build Godot 3.6.3 Android Editor APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-editor:
+    name: Build Android editor (ARM64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.1.0" \
+            "ndk;29.0.14206865"
+
+      - name: Set up Python and SCons
+        uses: ./.github/actions/godot-deps
+
+      - name: Compile Godot editor for Android ARM64
+        uses: ./.github/actions/godot-build
+        with:
+          platform: android
+          target: release_debug
+          tools: true
+          sconsflags: verbose=yes debug_symbols=no android_arch=arm64v8
+
+      - name: Package Android editor APK
+        working-directory: platform/android/java
+        run: ./gradlew --no-daemon --max-workers=2 generateGodotEditor
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Godot-3.6.3-Android-Editor-ARM64
+          path: bin/android_editor_builds/*.apk
+          if-no-files-found: error
+          compression-level: 0
