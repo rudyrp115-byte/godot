@@ -1,3 +1,4 @@
+
 name: Build Godot 3.6.3 Android Editor
 
 on:
@@ -10,35 +11,28 @@ jobs:
   build-android-editor:
     name: Build Android editor (ARM64)
     runs-on: ubuntu-22.04
-    timeout-minutes: 180
+    timeout-minutes: 360
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK tools
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          accept-android-sdk-licenses: false
+          accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
-          packages: ''
-
-      - name: Accept Android SDK licenses and install required packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-32" \
-            "build-tools;32.0.0" \
-            "ndk;23.2.8568313"
+          packages: |
+            platform-tools
+            platforms;android-32
+            build-tools;32.0.0
+            ndk;23.2.8568313
 
       - name: Install build dependencies
         run: |
@@ -48,39 +42,32 @@ jobs:
             pkg-config \
             python3 \
             python3-pip \
-            yasm \
-            libx11-dev \
-            libxcursor-dev \
-            libxinerama-dev \
-            libxi-dev \
-            libxrandr-dev \
-            libxrender-dev \
-            libgl1-mesa-dev \
-            libglu1-mesa-dev \
-            libasound2-dev \
-            libpulse-dev \
-            libudev-dev
+            yasm
           python3 -m pip install --user scons
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Configure Android environment
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/23.2.8568313" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/23.2.8568313" >> "$GITHUB_ENV"
 
-      - name: Build Godot 3.6.3 Android editor
+      - name: Build Godot Android editor libraries
         run: |
-          scons platform=android target=release_debug tools=yes arch=arm64 android_arch=arm64 -j2
+          scons platform=android target=release_debug tools=yes android_arch=arm64v8 -j2
 
-      - name: Upload build outputs
+      - name: Generate Android editor APK
+        run: |
+          cd platform/android/java
+          chmod +x gradlew
+          ./gradlew --no-daemon generateGodotEditor
+
+      - name: Upload Android editor APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: godot-3.6.3-android-arm64-editor
-          path: |
-            bin/*android*arm64*
-            bin/*.apk
+          name: Godot-3.6.3-Android-Editor-ARM64
+          path: bin/android_editor_builds/*.apk
           if-no-files-found: warn
           retention-days: 7
+          
