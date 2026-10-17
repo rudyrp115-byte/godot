@@ -44,15 +44,18 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/23.2.8568313" >> "$GITHUB_ENV"
 
       - name: Build Godot Android editor
-        run: scons platform=android target=release_debug tools=yes arch=arm64 android_arch=arm64v8 -j2
+        run: scons platform=android target=release_debug tools=yes android_arch=arm64v8 -j2
 
-      - name: Upload build outputs
-        if: always()
+      - name: Package Android editor APK
+        run: |
+          cd platform/android/java
+          chmod +x gradlew
+          ./gradlew generateGodotEditor --no-daemon
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: godot-3.6.3-android-arm64-editor
-          path: |
-            bin/*android*arm64*
-            bin/*.apk
-          if-no-files-found: warn
+          name: godot-3.6.3-android-editor-arm64
+          path: bin/android_editor_builds/*.apk
+          if-no-files-found: error
           retention-days: 7
